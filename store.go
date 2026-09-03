@@ -85,6 +85,9 @@ func FormatResult(r CheckResult) string {
 		kind = "ssl"
 	}
 	line := fmt.Sprintf("%s | %s | %s | %s", r.Timestamp.Format(time.RFC3339), status, r.Target.URL, kind)
+	if r.Target.ExpectStatus != 0 {
+		line += fmt.Sprintf(" | expect=%d", r.Target.ExpectStatus)
+	}
 	if r.Status != 0 {
 		line += fmt.Sprintf(" | http=%d", r.Status)
 	}

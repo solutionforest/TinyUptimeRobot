@@ -82,8 +82,8 @@ func (m *Monitor) handleStateChange(r CheckResult) {
 	var msg string
 	switch {
 	case !r.OK && !wasDown:
-		msg = fmt.Sprintf("🔴 DOWN: %s\nstatus=%d err=%s at %s",
-			r.Target.URL, r.Status, r.Err, r.Timestamp.Format(time.RFC3339))
+		msg = fmt.Sprintf("🔴 DOWN: %s\nstatus=%d err=%s at %s\nexpect=%d (0 = any 2xx/3xx is UP)",
+			r.Target.URL, r.Status, r.Err, r.Timestamp.Format(time.RFC3339), r.Target.ExpectStatus)
 	case r.OK && wasDown && m.cfg.NotifyRecover:
 		msg = fmt.Sprintf("🟢 RECOVERED: %s at %s",
 			r.Target.URL, r.Timestamp.Format(time.RFC3339))

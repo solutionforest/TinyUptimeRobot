@@ -228,3 +228,52 @@ func TestNotificationsSentWhenNotAlertOnly(t *testing.T) {
 		t.Fatal("expected Google Chat webhook to be called when ALERT_ONLY=false")
 	}
 }
+
+// Regression: "DOWN ... http=200" — a 200 response is DOWN only when the
+// target demands a different expected status.
+func TestDown200OnlyWithWrongExpectation(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	}))
+	defer srv.Close()
+
+	cfg := &Config{Timeout: 5 * time.Second, LogFile: t.TempDir() + "/s.txt"}
+
+	// no expectation: 200 must be UP
+	res := CheckURL(cfg, Target{URL: srv.URL})
+	if !res.OK {
+		t.Fatalf("200 with no expectation must be UP, got %+v", res)
+	}
+
+	// expectation 200: UP
+	res = CheckURL(cfg, Target{URL: srv.URL, ExpectStatus: 200})
+	if !res.OK {
+		t.Fatalf("200 with expect=200 must be UP, got %+v", res)
+	}
+
+	// expectation 204: DOWN — this is the only way to get "DOWN http=200"
+	res = CheckURL(cfg, Target{URL: srv.URL, ExpectStatus: 204})
+	if res.OK || res.Status != 200 {
+		t.Fatalf("expect=204 vs http=200 must be DOWN/200, got %+v", res)
+	}
+
+	// and the log line must reveal the expectation so it's not confusing
+	line := FormatResult(res)
+	if !strings.Contains(line, "expect=204") || !strings.Contains(line, "http=200") {
+		t.Fatalf("log line must show expect= and http=: %q", line)
+	}
+}
+
+// Regression: .env saved with CRLF line endings left a trailing \r on
+// secrets (SMTP_PASS, GCHAT_WEBHOOK_URL) breaking auth/webhooks silently.
+func TestGetStrTrimsCRFromEnv(t *testing.T) {
+	os.Setenv("TEST_CR", "https://chat.googleapis.com/v1/spaces/AAA/messages?key=k&token=t\r")
+	defer os.Unsetenv("TEST_CR")
+	got := getStr("TEST_CR", "")
+	if strings.HasSuffix(got, "\r") || strings.HasSuffix(got, " ") {
+		t.Fatalf("getStr must trim trailing CR/space, got %q", got)
+	}
+	if !strings.HasSuffix(got, "token=t") {
+		t.Fatalf("value corrupted: %q", got)
+	}
+}

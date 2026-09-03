@@ -59,7 +59,8 @@ func LoadConfig() *Config {
 
 func getStr(k, def string) string {
 	if v := os.Getenv(k); v != "" {
-		return v
+		// TrimSpace strips trailing \r from CRLF .env files and stray spaces
+		return strings.TrimSpace(v)
 	}
 	return def
 }
