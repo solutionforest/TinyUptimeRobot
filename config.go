@@ -33,7 +33,7 @@ type Config struct {
 	GChatURL      string // webhook
 	Timeout       time.Duration
 	NotifyRecover bool
-	AlertOnly     bool // TUI hides? no—CLI prints only alerts if true
+	AlertOnly     bool // print only alert lines to console; suppresses external notifications
 }
 
 // LoadConfig builds config from environment.
@@ -48,8 +48,8 @@ func LoadConfig() *Config {
 		SMTPPass:      os.Getenv("SMTP_PASS"),
 		MailFrom:      os.Getenv("MAIL_FROM"),
 		MailTo:        os.Getenv("MAIL_TO"),
-		SlackURL:      os.Getenv("SLACK_WEBHOOK_URL"),
-		GChatURL:      os.Getenv("GCHAT_WEBHOOK_URL"),
+		SlackURL:      getStr("SLACK_WEBHOOK_URL", ""),
+		GChatURL:      getStr("GCHAT_WEBHOOK_URL", ""),
 		Timeout:       getDur("HTTP_TIMEOUT", 10*time.Second),
 		NotifyRecover: getBool("NOTIFY_RECOVER", true),
 		AlertOnly:     getBool("ALERT_ONLY", false),

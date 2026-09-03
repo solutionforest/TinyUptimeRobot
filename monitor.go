@@ -92,16 +92,35 @@ func (m *Monitor) handleStateChange(r CheckResult) {
 	}
 
 	fmt.Println(">>> " + strings.ReplaceAll(msg, "\n", " "))
+	if m.cfg.AlertOnly {
+		// ALERT_ONLY means console-only alerts; no external notifications
+		return
+	}
 	m.notify(msg)
 }
 
 func (m *Monitor) notify(text string) {
 	var wg sync.WaitGroup
+	var sendErrs []string
+	var mu sync.Mutex
+
+	addErr := func(name string, err error) {
+		if err != nil {
+			mu.Lock()
+			sendErrs = append(sendErrs, name+": "+err.Error())
+			mu.Unlock()
+		}
+	}
+
 	wg.Add(3)
-	go func() { defer wg.Done(); _ = SendMail(m.cfg, "Uptime Alert", text) }()
-	go func() { defer wg.Done(); _ = SendSlack(m.cfg, text) }()
-	go func() { defer wg.Done(); _ = SendGChat(m.cfg, text) }()
+	go func() { defer wg.Done(); addErr("email", SendMail(m.cfg, "Uptime Alert", text)) }()
+	go func() { defer wg.Done(); addErr("slack", SendSlack(m.cfg, text)) }()
+	go func() { defer wg.Done(); addErr("gchat", SendGChat(m.cfg, text)) }()
 	wg.Wait()
+
+	for _, e := range sendErrs {
+		fmt.Fprintf(os.Stderr, "⚠ notify failed via %s\n", e)
+	}
 }
 
 // Tail prints the last n lines of the log (CLI helper).

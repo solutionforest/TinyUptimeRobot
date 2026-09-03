@@ -146,3 +146,85 @@ func TestNoRepeatAlertWhileStillDown(t *testing.T) {
 		t.Fatal("should still be marked down")
 	}
 }
+
+func TestAlertOnlySuppressesExternalNotifications(t *testing.T) {
+	var mailFrom, gotSlack, gotGChat string
+	ln := startFakeSMTP(t, &mailFrom)
+	defer ln.Close()
+	parts := strings.Split(ln.Addr().String(), ":")
+
+	slackSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotSlack = "called"
+		w.WriteHeader(200)
+	}))
+	defer slackSrv.Close()
+	gchatSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotGChat = "called"
+		w.WriteHeader(200)
+	}))
+	defer gchatSrv.Close()
+
+	cfg := &Config{
+		Timeout:   5 * time.Second,
+		LogFile:   t.TempDir() + "/s.txt",
+		AlertOnly: true,
+		SMTPHost:  parts[0],
+		SMTPPort:  parts[1],
+		MailFrom:  "m@test.local",
+		MailTo:    "o@test.local",
+		SlackURL:  slackSrv.URL,
+		GChatURL:  gchatSrv.URL,
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(500)
+	}))
+	defer srv.Close()
+
+	m := NewMonitor(cfg, []Target{{URL: srv.URL}})
+	m.RunOnce()
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) && (mailFrom != "" || gotSlack != "" || gotGChat != "") {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if mailFrom != "" {
+		t.Fatal("ALERT_ONLY=true must not send email")
+	}
+	if gotSlack != "" {
+		t.Fatal("ALERT_ONLY=true must not call Slack webhook")
+	}
+	if gotGChat != "" {
+		t.Fatal("ALERT_ONLY=true must not call Google Chat webhook")
+	}
+}
+
+func TestNotificationsSentWhenNotAlertOnly(t *testing.T) {
+	var gotGChat string
+	gchatSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotGChat = "called"
+		w.WriteHeader(200)
+	}))
+	defer gchatSrv.Close()
+
+	cfg := &Config{
+		Timeout:   5 * time.Second,
+		LogFile:   t.TempDir() + "/s.txt",
+		AlertOnly: false,
+		GChatURL:  gchatSrv.URL,
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(500)
+	}))
+	defer srv.Close()
+
+	m := NewMonitor(cfg, []Target{{URL: srv.URL}})
+	m.RunOnce()
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) && gotGChat == "" {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if gotGChat == "" {
+		t.Fatal("expected Google Chat webhook to be called when ALERT_ONLY=false")
+	}
+}
