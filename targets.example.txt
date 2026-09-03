@@ -1,0 +1,15 @@
+# Copy this file to targets.txt and edit it.
+# ⚠ targets.txt contains RAW credentials — it is gitignored, never commit it.
+#
+# Formats:
+#   https://example.com              HTTP check (2xx/3xx = UP)
+#   https://example.com|200          expect exact status 200
+#   ssl://example.com                SSL cert check (warn <30 days expiry)
+#   ssl://example.com|14             SSL warn threshold: 14 days
+#   mysql://user:pass@host:3306/db   MySQL up-check (SELECT 1)
+#   postgres://user:pass@host:5432/db  PostgreSQL up-check
+#   sqlite:///path/to/file.db        SQLite file readable + valid
+#   sqlserver://user:pass@host:1433?database=master  MS SQL up-check
+
+https://example.com
+https://www.google.com|200

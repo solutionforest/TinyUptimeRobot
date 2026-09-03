@@ -1,0 +1,16 @@
+# Secrets — never commit these
+.env
+*.env
+
+# Targets file contains RAW credentials (db passwords, internal URLs)
+targets.txt
+mytargets*.txt
+
+# Logs / data
+data/
+status.txt
+*.db
+
+# Build artifacts
+TinyUptimeRobot
+*.tmp
