@@ -51,7 +51,7 @@ func (m *Monitor) RunOnce() []CheckResult {
 	for _, r := range results {
 		line := FormatResult(r)
 		if err := m.store.Append(line); err != nil {
-			fmt.Fprintf(os.Stderr, "log write failed: %v\n", err)
+			fmt.Fprintf(os.Stderr, "⚠ log write failed (%v) — set LOG_FILE to a writable path (docker: /app/data/status.txt)\n", err)
 		}
 		if !m.cfg.AlertOnly || !r.OK {
 			fmt.Println(line)

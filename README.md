@@ -162,6 +162,12 @@ services:
     restart: unless-stopped
 ```
 
+> **Important:** in your `.env`, set `LOG_FILE=/app/data/status.txt` (the absolute
+> container path). If you leave it as the default relative `status.txt`, the file
+> is written to `/app/status.txt`, which is **not writable** by the container's
+> non-root user — you'll get `log write failed: permission denied`. The
+> `.env.example` and image default already use the correct path.
+
 ## Quick start (local, no Docker)
 
 ```bash
