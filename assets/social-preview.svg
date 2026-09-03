@@ -1,0 +1,78 @@
+<svg width="1280" height="640" viewBox="0 0 1280 640" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="pulse" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#34d399"/>
+      <stop offset=".55" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#e879f9"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1280" height="640" fill="url(#bg)"/>
+
+  <!-- subtle grid -->
+  <g stroke="#334155" stroke-width="1" opacity="0.25">
+    <line x1="0" y1="160" x2="1280" y2="160"/>
+    <line x1="0" y1="320" x2="1280" y2="320"/>
+    <line x1="0" y1="480" x2="1280" y2="480"/>
+    <line x1="320" y1="0" x2="320" y2="640"/>
+    <line x1="640" y1="0" x2="640" y2="640"/>
+    <line x1="960" y1="0" x2="960" y2="640"/>
+  </g>
+
+  <!-- icon (recreated inline, scaled) -->
+  <g transform="translate(90,170) scale(0.6)">
+    <rect x="0" y="0" width="480" height="480" rx="112" fill="#0b1220"/>
+    <rect x="0" y="0" width="480" height="480" rx="112" fill="none" stroke="url(#accent)" stroke-width="8" opacity=".55"/>
+    <polyline points="64,272 160,272 200,180 248,340 292,232 328,272 448,272"
+              fill="none" stroke="url(#pulse)" stroke-width="26"
+              stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="400" cy="152" r="34" fill="#34d399"/>
+    <circle cx="400" cy="152" r="34" fill="none" stroke="#0f172a" stroke-width="10"/>
+    <circle cx="400" cy="152" r="52" fill="#34d399" opacity=".18"/>
+    <path d="M 196 404 v-28 a 44 44 0 0 1 88 0 v 28"
+          fill="none" stroke="#fbbf24" stroke-width="20" stroke-linecap="round"/>
+    <rect x="180" y="400" width="120" height="76" rx="18" fill="#fbbf24"/>
+    <circle cx="240" cy="432" r="12" fill="#0f172a"/>
+    <rect x="233" y="432" width="14" height="22" rx="7" fill="#0f172a"/>
+  </g>
+
+  <!-- title -->
+  <text x="420" y="268" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="84" font-weight="800" fill="#f8fafc">TinyUptimeRobot</text>
+  <rect x="424" y="300" width="280" height="8" rx="4" fill="url(#accent)"/>
+
+  <!-- subtitle -->
+  <text x="424" y="382" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="40" font-weight="500" fill="#94a3b8">Websites · SSL certificates · Database liveness</text>
+
+  <!-- feature pills -->
+  <g font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="30" font-weight="600">
+    <rect x="424" y="428" width="212" height="56" rx="28" fill="#1e293b" stroke="#334155"/>
+    <circle cx="456" cy="456" r="9" fill="#34d399"/>
+    <text x="478" y="466" fill="#e2e8f0">http://</text>
+
+    <rect x="652" y="428" width="200" height="56" rx="28" fill="#1e293b" stroke="#334155"/>
+    <circle cx="684" cy="456" r="9" fill="#fbbf24"/>
+    <text x="706" y="466" fill="#e2e8f0">ssl://</text>
+
+    <rect x="868" y="428" width="300" height="56" rx="28" fill="#1e293b" stroke="#334155"/>
+    <circle cx="900" cy="456" r="9" fill="#22d3ee"/>
+    <text x="922" y="466" fill="#e2e8f0">mysql:// pg:// …</text>
+  </g>
+
+  <!-- bottom line -->
+  <text x="424" y="552" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="26" fill="#64748b">Single Docker image · text logs · TUI setup · Slack/GChat/email alerts</text>
+
+  <!-- status dots decoration bottom right -->
+  <g transform="translate(1148,520)">
+    <circle cx="0"  cy="0" r="12" fill="#34d399"/>
+    <circle cx="40" cy="0" r="12" fill="#34d399"/>
+    <circle cx="80" cy="0" r="12" fill="#e879f9"/>
+  </g>
+</svg>
