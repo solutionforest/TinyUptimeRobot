@@ -372,14 +372,21 @@ GitHub Actions (`.github/workflows/ci.yml`):
 
 - runs `go vet` + full test suite on every push/PR
 - builds & pushes the Docker image to **GHCR** (`ghcr.io/solutionforest/tinyuptimerobot`) on every push to `main` (tagged `latest`) — free public registry, `docker pull` with no login
-- **on a version tag** (`v1.0.0` style), additionally pushes the image tagged with that version (`:1.0.0`) and creates a GitHub Release with auto-generated notes + the exact `docker pull` command
+- **on a version tag** (`v1.2.3` style), additionally pushes the image tagged with that version (`:1.2.3`) and creates a GitHub Release whose notes come from the **tag annotation message**, plus auto-generated commit list and the `docker pull` commands
 
-Release a new version:
+Release a new version (the tag annotation becomes the release notes — write it well):
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
-# CI runs: test → docker image (ghcr.io/...:1.0.0) → GitHub Release
+git tag -a v1.2.3 -m "TinyUptimeRobot v1.2.3
+
+Added:
+- ...
+
+Fixed:
+- ..."
+
+git push origin v1.2.3
+# CI runs: test → docker image (ghcr.io/...:1.2.3) → GitHub Release with those notes
 ```
 
 ## Development

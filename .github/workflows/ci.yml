@@ -62,13 +62,24 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Extract release notes from tag annotation
+        run: |
+          {
+            git tag -l --format='%(contents)' "${GITHUB_REF_NAME}" | sed 's/-----BEGIN PGP SIGNATURE-----.*//'
+            echo ""
+            echo "---"
+            echo ""
+            echo "## 🐳 Docker image"
+            echo ""
+            echo '```bash'
+            echo "docker pull ghcr.io/solutionforest/tinyuptimerobot:${GITHUB_REF_NAME}"
+            echo "docker pull ghcr.io/solutionforest/tinyuptimerobot:latest"
+            echo '```'
+          } > release-notes.md
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          body_path: release-notes.md
           generate_release_notes: true
-          body: |
-            Docker image:
-
-            ```
-            docker pull ghcr.io/solutionforest/tinyuptimerobot:${{ github.ref_name }}
-            ```
