@@ -27,6 +27,8 @@ No database required — results go to a plain `.txt` file (CRLF line endings) w
 - **5-minute setup** — `docker run` one command, or launch the built-in `--setup` TUI to configure targets and notification channels interactively in the terminal.
 - **Actually tested** — 35+ unit tests covering checks, rotation, alerts and notification delivery, wired into GitHub Actions CI with automatic GHCR image publishing.
 
+<img width="1376" height="768" alt="image" src="https://github.com/user-attachments/assets/ad406df1-ad8f-4d09-96ed-d698446f3290" />
+
 ## How it works
 
 ```
