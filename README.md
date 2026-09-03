@@ -1,6 +1,21 @@
+<div align="center">
+
+<img src="assets/icon.svg" width="128" alt="TinyUptimeRobot logo"/>
+
 # TinyUptimeRobot
 
-A tiny Go-based **website, SSL-certificate and database monitor** in a single Dockerfile. No database required — results are written to a plain `.txt` file (CRLF line endings) with automatic cleanup/rotation. Alerts via **Email (SMTP)**, **Slack**, or **Google Chat**. Comes with an interactive **terminal TUI** for setup.
+[![CI](https://github.com/solutionforest/TinyUptimeRobot/actions/workflows/ci.yml/badge.svg)](https://github.com/solutionforest/TinyUptimeRobot/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+![Go](https://img.shields.io/badge/Go-1.25-00ADD8?logo=go&logoColor=white)
+![Docker](https://img.shields.io/badge/ghcr.io-solutionforest%2Ftinyuptimerobot-2496ED?logo=docker&logoColor=white)
+
+**A tiny self-hosted website, SSL-certificate and database liveness monitor in one Docker image.**
+
+No database required — results go to a plain `.txt` file (CRLF line endings) with automatic cleanup/rotation. Alerts via **Email (SMTP)**, **Slack**, or **Google Chat**. Interactive **terminal TUI** for setup.
+
+`docker pull ghcr.io/solutionforest/tinyuptimerobot:latest`
+
+</div>
 
 ## Why use TinyUptimeRobot?
 
@@ -250,6 +265,72 @@ sqlserver://sa:pass@db.host:1433?database=master
 
 Any HTTP 2xx/3xx counts as UP unless an expected status is specified. SSL targets fail on invalid/untrusted/expired certs or when inside the warn threshold. DB targets fail when connection or the probe query fails.
 
+## SSL certificate checks (`ssl://`)
+
+TinyUptimeRobot performs a real **TLS handshake** against the host, verifies the certificate chain (untrusted/self-signed/expired certs fail), and checks **how many days are left before expiry**.
+
+```
+ssl://example.com              # port 443, warn at SSL_WARN_DAYS (default 30)
+ssl://example.com:8443         # custom TLS port
+ssl://example.com|14           # per-target warn threshold: DOWN if <14 days left
+```
+
+**When is it UP?**
+- TLS handshake succeeds with a valid, trusted certificate chain
+- Certificate is not expired
+- Days-to-expiry ≥ warn threshold (`SSL_WARN_DAYS` env or per-target `|N`)
+
+**When is it DOWN?**
+- Handshake fails (host down, wrong port, TLS version too old)
+- Certificate is self-signed / untrusted / hostname mismatch
+- Certificate **expired**, or expires within the warn threshold
+
+Example log line with cert details:
+
+```
+2026-09-03T16:30:36+08:00 | UP | ssl://example.com | ssl | cert=example.com | issuer=R3 | expires=2026-11-14 (72d)
+```
+
+Global threshold via env:
+
+```bash
+SSL_WARN_DAYS=30     # default — all ssl:// targets fail when expiry is closer
+```
+
+Typical use: run daily (`CHECK_INTERVAL=24h`) and get an email/Slack ping weeks before a cert expires — no more surprise expired-certificate incidents.
+
+## Database liveness probes (`mysql://`, `postgres://`, `sqlite://`, `sqlserver://`)
+
+A DB target opens a **real connection** and runs a lightweight `SELECT 1` probe. This verifies the full stack: network reachable → auth works (user/password valid) → server accepting queries. A ping or port-check alone does not tell you any of that.
+
+```
+mysql://user:pass@db.host:3306/app
+postgres://user:pass@db.host:5432/prod          # postgresql:// also accepted
+sqlite:///app/data/local.db                     # file must exist, open & be readable
+sqlserver://sa:pass@db.host:1433?database=master
+```
+
+**When is it UP?**
+- Connection + authentication succeed within `HTTP_TIMEOUT`
+- `SELECT 1` executes successfully
+
+**When is it DOWN?**
+- Host unreachable / wrong port / firewall
+- **Wrong username or password** (auth failure)
+- Server up but refusing queries (max_connections exhausted, disk full, locked)
+- SQLite file corrupted or unreadable
+
+Example log lines:
+
+```
+2026-09-03T16:30:37+08:00 | UP | postgres://db:5432/prod | db | 12ms
+2026-09-03T16:30:38+08:00 | DOWN | mysql://db:3306/app | db | err=dial tcp: connection refused
+```
+
+Each probe opens a fresh short-lived connection (max 1 conn) — no pooling, no lingering sessions on your database.
+
+> ⚠ **DB targets contain raw passwords.** `targets.txt` is gitignored — never commit it (see security warning above).
+
 ## Log format
 
 ```
@@ -284,7 +365,16 @@ Steady-state UP checks do **not** spam notifications.
 GitHub Actions (`.github/workflows/ci.yml`):
 
 - runs `go vet` + full test suite on every push/PR
-- builds & pushes the Docker image to **GHCR** (`ghcr.io/solutionforest/tinyuptimerobot`) on `main` and version tags (`v*`) — free public registry, `docker pull` with no login
+- builds & pushes the Docker image to **GHCR** (`ghcr.io/solutionforest/tinyuptimerobot`) on every push to `main` (tagged `latest`) — free public registry, `docker pull` with no login
+- **on a version tag** (`v1.0.0` style), additionally pushes the image tagged with that version (`:1.0.0`) and creates a GitHub Release with auto-generated notes + the exact `docker pull` command
+
+Release a new version:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+# CI runs: test → docker image (ghcr.io/...:1.0.0) → GitHub Release
+```
 
 ## Development
 
