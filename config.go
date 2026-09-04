@@ -13,7 +13,8 @@ import (
 // Target is one thing we monitor.
 type Target struct {
 	URL          string
-	ExpectStatus int // 0 = any 2xx/3xx ok
+	ExpectStatus int    // 0 = any 2xx/3xx ok
+	NotifyTo     string // optional per-target channel overrides (see parseNotifySpec)
 }
 
 // Config holds everything loaded from env / targets file.
@@ -34,6 +35,56 @@ type Config struct {
 	Timeout       time.Duration
 	NotifyRecover bool
 	AlertOnly     bool // print only alert lines to console; suppresses external notifications
+}
+
+// NotifyOverrides holds per-target notification destinations. Empty fields
+// fall back to the global config for that channel.
+type NotifyOverrides struct {
+	Mail  string // comma-separated email addresses
+	Slack string // webhook URL
+	GChat string // webhook URL
+}
+
+// parseNotifySpec parses the optional third targets.txt field:
+//
+//	ops@example.com,backup@example.com          -> Mail (backward compatible)
+//	email:ops@example.com,backup@example.com    -> Mail (explicit form)
+//	slack:https://hooks.slack.com/...           -> Slack
+//	gchat:https://chat.googleapis.com/...       -> GChat
+//	mixed, comma separated:
+//	  email:ops@example.com,slack:https://...,gchat:https://...
+func parseNotifySpec(spec string) NotifyOverrides {
+	var o NotifyOverrides
+	for _, part := range strings.Split(spec, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		switch {
+		case strings.HasPrefix(part, "email:"):
+			addr := strings.TrimSpace(strings.TrimPrefix(part, "email:"))
+			if addr == "" {
+				continue
+			}
+			o.Mail = appendMail(o.Mail, addr)
+		case strings.HasPrefix(part, "slack:"):
+			o.Slack = strings.TrimSpace(strings.TrimPrefix(part, "slack:"))
+		case strings.HasPrefix(part, "gchat:"):
+			o.GChat = strings.TrimSpace(strings.TrimPrefix(part, "gchat:"))
+		default:
+			o.Mail = appendMail(o.Mail, part)
+		}
+	}
+	return o
+}
+
+// appendMail joins comma-separated email fragments, keeping raw spacing
+// intact for the SMTP To: header.
+func appendMail(existing, addr string) string {
+	if existing == "" {
+		return addr
+	}
+	return existing + ", " + addr
 }
 
 // LoadConfig builds config from environment.
@@ -101,7 +152,7 @@ func getBool(k string, def bool) bool {
 	return v == "1" || v == "true" || v == "yes" || v == "y"
 }
 
-// LoadTargets reads targets.txt: one URL per line, optional "|expected_status".
+// LoadTargets reads targets.txt: one URL per line, optional "|expected_status|notify_to".
 func LoadTargets(path string) ([]Target, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -119,11 +170,15 @@ func LoadTargets(path string) ([]Target, error) {
 			continue
 		}
 		t := Target{URL: line, ExpectStatus: 0}
-		if i := strings.Index(line, "|"); i >= 0 {
-			t.URL = strings.TrimSpace(line[:i])
-			if n, err := strconv.Atoi(strings.TrimSpace(line[i+1:])); err == nil {
+		parts := strings.SplitN(line, "|", 3)
+		t.URL = strings.TrimSpace(parts[0])
+		if len(parts) > 1 {
+			if n, err := strconv.Atoi(strings.TrimSpace(parts[1])); err == nil {
 				t.ExpectStatus = n
 			}
+		}
+		if len(parts) > 2 {
+			t.NotifyTo = strings.TrimSpace(parts[2])
 		}
 		if t.URL == "" {
 			continue
@@ -140,8 +195,12 @@ func LoadTargets(path string) ([]Target, error) {
 }
 
 // SendMail sends a plain email via SMTP (STARTTLS on 587, SSL on 465 not handled — keep simple).
-func SendMail(cfg *Config, subject, body string) error {
-	if cfg.SMTPHost == "" || cfg.MailTo == "" || cfg.MailFrom == "" {
+// recipients overrides cfg.MailTo when non-empty.
+func SendMail(cfg *Config, recipients, subject, body string) error {
+	if recipients == "" {
+		recipients = cfg.MailTo
+	}
+	if cfg.SMTPHost == "" || recipients == "" || cfg.MailFrom == "" {
 		return nil // mail not configured
 	}
 	addr := cfg.SMTPHost + ":" + cfg.SMTPPort
@@ -152,7 +211,7 @@ func SendMail(cfg *Config, subject, body string) error {
 
 	msg := strings.Join([]string{
 		"From: " + cfg.MailFrom,
-		"To: " + cfg.MailTo,
+		"To: " + recipients,
 		"Subject: " + subject,
 		"MIME-Version: 1.0",
 		"Content-Type: text/plain; charset=\"utf-8\"",
@@ -166,29 +225,35 @@ func SendMail(cfg *Config, subject, body string) error {
 		auth = smtp.PlainAuth("", cfg.SMTPUser, cfg.SMTPPass, host)
 	}
 
-	recipients := strings.Split(cfg.MailTo, ",")
-	for i := range recipients {
-		recipients[i] = strings.TrimSpace(recipients[i])
+	rcpts := strings.Split(recipients, ",")
+	for i := range rcpts {
+		rcpts[i] = strings.TrimSpace(rcpts[i])
 	}
-	return smtp.SendMail(addr, auth, from, recipients, []byte(msg))
+	return smtp.SendMail(addr, auth, from, rcpts, []byte(msg))
 }
 
-// SendSlack posts to a Slack incoming webhook.
-func SendSlack(cfg *Config, text string) error {
-	if cfg.SlackURL == "" {
+// SendSlack posts to a Slack incoming webhook. url overrides cfg.SlackURL when non-empty.
+func SendSlack(cfg *Config, url, text string) error {
+	if url == "" {
+		url = cfg.SlackURL
+	}
+	if url == "" {
 		return nil
 	}
 	payload := `{"text":` + jsonQuote(text) + `}`
-	return postJSON(cfg.SlackURL, payload)
+	return postJSON(url, payload)
 }
 
-// SendGChat posts to a Google Chat webhook.
-func SendGChat(cfg *Config, text string) error {
-	if cfg.GChatURL == "" {
+// SendGChat posts to a Google Chat webhook. url overrides cfg.GChatURL when non-empty.
+func SendGChat(cfg *Config, url, text string) error {
+	if url == "" {
+		url = cfg.GChatURL
+	}
+	if url == "" {
 		return nil
 	}
 	payload := `{"text":` + jsonQuote(text) + `}`
-	return postJSON(cfg.GChatURL, payload)
+	return postJSON(url, payload)
 }
 
 func postJSON(url, payload string) error {

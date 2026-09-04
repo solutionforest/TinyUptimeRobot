@@ -4,6 +4,16 @@
 # Formats:
 #   https://example.com              HTTP check (2xx/3xx = UP)
 #   https://example.com|200          expect exact status 200
+#   https://example.com|200|ops@example.com,backup@example.com
+#                                      per-target email recipients (optional)
+#   https://example.com|200|email:ops@example.com,backup@example.com
+#                                      per-target email, explicit form
+#   https://example.com|200|slack:https://hooks.slack.com/services/XXX
+#                                      per-target Slack webhook (optional)
+#   https://example.com|200|gchat:https://chat.googleapis.com/v1/spaces/AAA
+#                                      per-target Google Chat webhook (optional)
+#   https://example.com|200|a@x.com,slack:https://hooks.slack.com/XXX
+#                                      mix email + Slack per target
 #   ssl://example.com                SSL cert check (warn <30 days expiry)
 #   ssl://example.com|14             SSL warn threshold: 14 days
 #   mysql://user:pass@host:3306/db   MySQL up-check (SELECT 1)

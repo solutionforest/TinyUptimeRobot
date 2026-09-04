@@ -41,7 +41,7 @@ type setupModel struct {
 func newSetupModel(cfg *Config) *setupModel {
 	m := &setupModel{
 		fields: []string{
-			"Add target (url / mysql:// / postgres:// / sqlite:// / ssl://host)",
+			"Add target (url|status|a@x.com,slack:URL,gchat:URL, or mysql:// / ssl://host)",
 			"Check interval (e.g. 60s, 5m)",
 			"SMTP host (email alerts)",
 			"Mail to (comma separated)",

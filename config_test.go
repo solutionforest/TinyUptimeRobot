@@ -64,7 +64,7 @@ func TestGetInt64AndBool(t *testing.T) {
 func TestLoadTargets(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "targets.txt")
-	content := "# comment line\n\nhttps://example.com\nhttps://google.com | 200\n|999\n"
+	content := "# comment line\n\nhttps://example.com\nhttps://google.com | 200\nhttps://api.example.com | 201 | api@example.com, backup@example.com\n|999\n"
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -73,14 +73,17 @@ func TestLoadTargets(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(targets) != 2 {
-		t.Fatalf("got %d targets, want 2: %+v", len(targets), targets)
+	if len(targets) != 3 {
+		t.Fatalf("got %d targets, want 3: %+v", len(targets), targets)
 	}
 	if targets[0].URL != "https://example.com" || targets[0].ExpectStatus != 0 {
 		t.Fatalf("target[0] = %+v", targets[0])
 	}
 	if targets[1].URL != "https://google.com" || targets[1].ExpectStatus != 200 {
 		t.Fatalf("target[1] = %+v", targets[1])
+	}
+	if targets[2].URL != "https://api.example.com" || targets[2].ExpectStatus != 201 || targets[2].NotifyTo != "api@example.com, backup@example.com" {
+		t.Fatalf("target[2] = %+v", targets[2])
 	}
 }
 
