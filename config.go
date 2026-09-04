@@ -110,10 +110,22 @@ func LoadConfig() *Config {
 
 func getStr(k, def string) string {
 	if v := os.Getenv(k); v != "" {
-		// TrimSpace strips trailing \r from CRLF .env files and stray spaces
-		return strings.TrimSpace(v)
+		// TrimSpace strips trailing \r from CRLF .env files and stray spaces;
+		// stripInlineComment guards against `KEY=value # comment` which
+		// docker --env-file passes through verbatim.
+		return strings.TrimSpace(stripInlineComment(v))
 	}
 	return def
+}
+
+// stripInlineComment removes a trailing ` # ...` comment from an env value.
+// Only " #" (space followed by hash) starts a comment so URLs containing
+// fragments or tokens with # are preserved unless clearly commented.
+func stripInlineComment(v string) string {
+	if i := strings.Index(v, " #"); i >= 0 {
+		return v[:i]
+	}
+	return v
 }
 
 func getDur(k string, def time.Duration) time.Duration {
@@ -121,6 +133,7 @@ func getDur(k string, def time.Duration) time.Duration {
 	if v == "" {
 		return def
 	}
+	v = strings.TrimSpace(stripInlineComment(v))
 	d, err := time.ParseDuration(v)
 	if err != nil {
 		// allow plain seconds
@@ -137,6 +150,7 @@ func getInt64(k string, def int64) int64 {
 	if v == "" {
 		return def
 	}
+	v = strings.TrimSpace(stripInlineComment(v))
 	n, err := strconv.ParseInt(v, 10, 64)
 	if err != nil {
 		return def
@@ -145,7 +159,7 @@ func getInt64(k string, def int64) int64 {
 }
 
 func getBool(k string, def bool) bool {
-	v := strings.ToLower(os.Getenv(k))
+	v := strings.ToLower(strings.TrimSpace(stripInlineComment(os.Getenv(k))))
 	if v == "" {
 		return def
 	}
