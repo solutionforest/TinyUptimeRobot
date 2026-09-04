@@ -22,10 +22,10 @@ No database required — results go to a plain `.txt` file (CRLF line endings) w
 - **One tiny binary, zero infrastructure** — no database, no queue, no control plane. A single ~15MB Docker image or one Go binary. If you can run `docker run`, you have a monitoring system.
 - **Everything in one plain text file** — status history in `status.txt`, readable with `cat`/`tail`/`grep`. No lock-in: your monitoring data is yours, exportable by definition.
 - **Not just websites** — monitors HTTP endpoints, **SSL certificate validity & expiry**, and **live database connections** (MySQL, PostgreSQL, SQLite, SQL Server) out of the box.
-- **Alerts where your team already is** — Slack, Google Chat, and email fire **in parallel** on DOWN and recovery. No vendor SaaS, no per-seat pricing, no data leaving your network.
+- **Alerts where your team already is** — Slack, Google Chat, and email fire **in parallel** on DOWN and recovery — globally or **per target**. No vendor SaaS, no per-seat pricing, no data leaving your network.
 - **Self-hosted & private** — your target URLs may contain database passwords. TinyUptimeRobot runs inside your infra; nothing phones home.
 - **5-minute setup** — `docker run` one command, or launch the built-in `--setup` TUI to configure targets and notification channels interactively in the terminal.
-- **Actually tested** — 35+ unit tests covering checks, rotation, alerts and notification delivery, wired into GitHub Actions CI with automatic GHCR image publishing.
+- **Actually tested** — 48 unit tests covering checks, rotation, alerts and notification delivery, wired into GitHub Actions CI with automatic GHCR image publishing.
 
 <img width="1376" height="768" alt="image" src="https://github.com/user-attachments/assets/ad406df1-ad8f-4d09-96ed-d698446f3290" />
 
@@ -196,7 +196,7 @@ Targets (2) — ←/→ select, d delete:
   https://example.com
 > mysql://user:****@db.internal:3306/app
 
-> Add target (url / mysql:// / postgres:// / sqlite:// / ssl://host)
+> Add target (url|status|emails, or mysql:// / postgres:// / sqlite:// / ssl://host)
   Check interval (e.g. 60s, 5m)        [now: 1m0s]
   SMTP host (email alerts)             [now: -]
   Mail to (comma separated)            [now: -]
@@ -234,7 +234,7 @@ Saving writes `targets.txt` and updates `.env` automatically.
 | `SMTP_USER` | `you@gmail.com` |
 | `SMTP_PASS` | app password |
 | `MAIL_FROM` | `you@gmail.com` |
-| `MAIL_TO` | `ops@example.com, backup@example.com` (comma separated) |
+| `MAIL_TO` | `ops@example.com, backup@example.com` (global fallback, comma separated) |
 
 > `SMTP_PASS` is a raw credential — it lives in `.env` (gitignored) or your
 > secrets manager. Never put it in the repo.
@@ -256,6 +256,7 @@ Google Chat: Space → Apps & Integrations → Webhooks.
 # --- HTTP checks ---
 https://example.com
 https://www.google.com|200        # expect exactly HTTP 200
+https://api.example.com|200|api-oncall@example.com,backup@example.com
 
 # --- SSL certificate checks (valid chain + expiry) ---
 ssl://example.com                 # port 443, warn < SSL_WARN_DAYS (30)
@@ -367,6 +368,34 @@ A notification is sent (to all configured channels in parallel) when:
 - a target **RECOVERS** (was down, now OK — if `NOTIFY_RECOVER=true`).
 
 Steady-state UP checks do **not** spam notifications.
+
+### Per-target notification lists
+
+Add a third pipe-separated field to a target when its alerts should go to
+specific channels instead of (or in addition to) the global ones:
+
+```
+# emails only (comma separated) — overrides MAIL_TO
+https://api.example.com|200|api-oncall@example.com,backup@example.com
+
+# emails, explicit form (equivalent to bare text above)
+https://api.example.com|200|email:api-oncall@example.com,backup@example.com
+
+# route to a specific Slack webhook
+https://api.example.com|200|slack:https://hooks.slack.com/services/XXX/YYY
+
+# route to a specific Google Chat webhook
+https://api.example.com|200|gchat:https://chat.googleapis.com/v1/spaces/BBB/...
+
+# mix all three, comma separated
+https://api.example.com|200|api-oncall@example.com,slack:https://hooks.slack.com/services/XXX/YYY
+```
+
+Each channel in the third field overrides the global setting for that target
+only: bare text (or `email:` prefixed) is treated as email addresses,
+`slack:<url>` overrides `SLACK_WEBHOOK_URL`, `gchat:<url>` overrides
+`GCHAT_WEBHOOK_URL`. Targets without the third field use the global config
+(`MAIL_TO`, `SLACK_WEBHOOK_URL`, `GCHAT_WEBHOOK_URL`) for all channels.
 
 ## CI & registry
 

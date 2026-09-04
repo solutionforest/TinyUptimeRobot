@@ -96,10 +96,10 @@ func (m *Monitor) handleStateChange(r CheckResult) {
 		// ALERT_ONLY means console-only alerts; no external notifications
 		return
 	}
-	m.notify(msg)
+	m.notify(r.Target, msg)
 }
 
-func (m *Monitor) notify(text string) {
+func (m *Monitor) notify(target Target, text string) {
 	var wg sync.WaitGroup
 	var sendErrs []string
 	var mu sync.Mutex
@@ -112,10 +112,12 @@ func (m *Monitor) notify(text string) {
 		}
 	}
 
+	ov := parseNotifySpec(target.NotifyTo)
+
 	wg.Add(3)
-	go func() { defer wg.Done(); addErr("email", SendMail(m.cfg, "Uptime Alert", text)) }()
-	go func() { defer wg.Done(); addErr("slack", SendSlack(m.cfg, text)) }()
-	go func() { defer wg.Done(); addErr("gchat", SendGChat(m.cfg, text)) }()
+	go func() { defer wg.Done(); addErr("email", SendMail(m.cfg, ov.Mail, "Uptime Alert", text)) }()
+	go func() { defer wg.Done(); addErr("slack", SendSlack(m.cfg, ov.Slack, text)) }()
+	go func() { defer wg.Done(); addErr("gchat", SendGChat(m.cfg, ov.GChat, text)) }()
 	wg.Wait()
 
 	for _, e := range sendErrs {

@@ -149,7 +149,7 @@ func TestNoRepeatAlertWhileStillDown(t *testing.T) {
 
 func TestAlertOnlySuppressesExternalNotifications(t *testing.T) {
 	var mailFrom, gotSlack, gotGChat string
-	ln := startFakeSMTP(t, &mailFrom)
+	ln := startFakeSMTP(t, &mailFrom, nil)
 	defer ln.Close()
 	parts := strings.Split(ln.Addr().String(), ":")
 
